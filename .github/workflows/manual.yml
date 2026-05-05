@@ -84,6 +84,8 @@ on:
   push:
     branches:
       - release
+      - master
+      - develop
 
   workflow_dispatch:
     # 手動觸發時可接受的輸入參數
