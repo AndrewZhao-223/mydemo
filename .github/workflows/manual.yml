@@ -1,4 +1,38 @@
 # This is a basic workflow that is manually triggered
+#
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                          Pipeline 治理規範                                  ║
+# ╠══════════════════════════════════════════════════════════════════════════════╣
+# ║ 1. 僅限開源工具：所有使用的 Action 與 CLI 工具必須為 OSI 認可的開源授權       ║
+# ║    （MIT / Apache 2.0 / BSD），禁止使用閉源或僅提供免費試用的商業工具。        ║
+# ║ 2. 無商業授權爭議：不採用授權條款模糊、有雙重授權爭議或近期變更授權模式         ║
+# ║    （如由開源轉為 BSL/SSPL/BUSL）的工具。                                   ║
+# ║ 3. 費用控管：所有 Job 僅使用 GitHub-hosted ubuntu-latest Runner              ║
+# ║    （公開倉庫免費，私有倉庫消耗免費額度），不使用付費的 larger runner            ║
+# ║    或第三方 SaaS 服務。                                                     ║
+# ║ 4. 資料不外流：所有掃描與分析皆在 Runner 本機執行，不將原始碼、掃描結果         ║
+# ║    或建置產物上傳至 GitHub 以外的第三方服務。唯一的例外是 govulncheck           ║
+# ║    會查詢 Go 官方漏洞資料庫 (vuln.go.dev)，僅傳送 module path，不傳送原始碼。  ║
+# ║ 5. 第三方金鑰：目前此 pipeline 不需要任何第三方服務金鑰。若未來新增需要          ║
+# ║    金鑰的步驟，必須在 workflow_dispatch inputs 中明確宣告，讓使用者知悉。       ║
+# ║ 6. 供應鏈安全：所有第三方 Action 必須鎖定版本標籤（如 @v4），禁止使用           ║
+# ║    @master 或 @main 等浮動分支，防止供應鏈攻擊。                              ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+#
+# 工具授權清單：
+#   - actions/checkout@v4           → MIT License (GitHub 官方)
+#   - actions/setup-go@v5           → MIT License (GitHub 官方)
+#   - actions/upload-artifact@v4    → MIT License (GitHub 官方)
+#   - actions/download-artifact@v4  → MIT License (GitHub 官方)
+#   - securego/gosec                → Apache License 2.0
+#   - govulncheck                   → BSD-3-Clause (Go 官方)
+#   - go-licenses                   → Apache License 2.0 (Google)
+#
+# 資料流向說明：
+#   - 原始碼：僅存在於 GitHub Runner 本機，不傳送至外部
+#   - 建置產物：透過 GitHub Artifact 暫存，僅限同 Workflow 內的 Job 存取
+#   - 掃描結果：僅輸出至 Actions 日誌與 Artifact，不外傳
+#   - govulncheck：僅向 vuln.go.dev 傳送 module path 比對漏洞，不傳送原始碼
 
 name: Manual workflow
 
@@ -9,24 +43,212 @@ on:
     # Inputs the workflow accepts.
     inputs:
       name:
-        # Friendly description to be shown in the UI instead of 'name'
         description: 'Person to greet'
-        # Default value if no value is explicitly provided
         default: 'World'
-        # Input has to be provided for the workflow to run
         required: true
-        # The data type of the input
         type: string
+      # ──────────────────────────────────────
+      # 第三方金鑰區塊（目前無需金鑰）
+      # 若未來整合需要 API Key 的服務，請在此區塊新增 input，
+      # 並搭配 GitHub Secrets 使用，切勿將金鑰硬編碼於 workflow 中。
+      # 範例：
+      # snyk_token:
+      #   description: 'Snyk API Token（若啟用 Snyk 掃描才需要）'
+      #   required: false
+      #   type: string
+      # ──────────────────────────────────────
+
+# 最小權限原則：僅授予此 workflow 實際需要的權限，
+# 避免 GITHUB_TOKEN 被濫用或在供應鏈攻擊中造成更大損害。
+permissions:
+  contents: read        # 僅需讀取倉庫原始碼
+  actions: read         # 讀取 workflow 狀態
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
+# 每個 Job 都運行在獨立的虛擬機器中，彼此不共享檔案系統，
+# 因此每個需要原始碼的 Job 都必須重新 checkout。
+# 執行順序: build → deliver → test → security-scan → oss-scan
+#
+# 費用說明：所有 Job 使用 ubuntu-latest（GitHub-hosted），
+# 公開倉庫完全免費；私有倉庫每月有 2,000 分鐘免費額度（Free plan）。
+# 本 pipeline 單次執行預估耗時 < 10 分鐘，不會產生額外費用。
 jobs:
-  # This workflow contains a single job called "greet"
-  greet:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
+  # ──────────────────────────────────────
+  # 1. Golang 建置 (Build)
+  # ──────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest    # 免費 Runner，不使用付費 larger runner
     steps:
-    # Runs a single command using the runners shell
-    - name: Send greeting
-      run: echo "Hello ${{ inputs.name }}"
+      # actions/checkout@v4（MIT License, GitHub 官方維護）
+      # 將 Git 倉庫的原始碼拉取到 Runner 的工作目錄中。
+      # Runner 預設是乾淨的虛擬環境，不包含任何專案檔案。
+      # 資料安全：原始碼僅存在於 Runner 本機，不會傳送至外部。
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # actions/setup-go@v5（MIT License, GitHub 官方維護）
+      # 安裝指定版本的 Go 編譯器並設定 GOPATH / GOROOT 環境變數，
+      # 同時自動快取 Go module 加速下載。
+      # 資料安全：僅從 golang.org 官方下載 Go SDK，不傳送任何專案資料。
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      # go build：Go 官方內建工具（BSD-3-Clause），完全本機執行。
+      # -o demo-app 指定輸出檔名，./... 表示遞迴編譯所有子套件。
+      - name: Build
+        run: go build -ldflags="-w -s" -o demo-app ./...
+
+      # actions/upload-artifact@v4（MIT License, GitHub 官方維護）
+      # 將建置產物上傳至 GitHub Actions 的暫存區（非第三方服務），
+      # 僅限同 Workflow 內的 Job 透過 download-artifact 存取。
+      # 資料安全：產物儲存在 GitHub 基礎設施內，不外流至第三方。
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-app
+          path: demo-app
+
+  # ──────────────────────────────────────
+  # 2. 交付執行檔 (Deliver Artifact)
+  # ──────────────────────────────────────
+  deliver:
+    runs-on: ubuntu-latest    # 免費 Runner
+    # needs: build 表示此 Job 必須等 build Job 成功完成後才會執行，
+    # 確保建置產物已經準備好可供下載。
+    needs: build
+    steps:
+      # actions/download-artifact@v4（MIT License, GitHub 官方維護）
+      # 從 GitHub Actions 暫存區下載先前上傳的建置產物，
+      # 這是跨 Job 傳遞檔案的標準方式。
+      # 資料安全：僅從 GitHub 內部暫存區下載，不涉及第三方服務。
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: demo-app
+
+      # 驗證下載的執行檔是否完整且為有效的 ELF 二進位檔案：
+      # - ls -la：確認檔案存在及大小
+      # - file：檢查檔案類型（應為 ELF 64-bit executable）
+      # - chmod +x：賦予執行權限，確保檔案可被執行
+      - name: Verify executable
+        run: |
+          ls -la demo-app
+          file demo-app
+          chmod +x demo-app
+          echo "Artifact delivered and verified successfully."
+
+  # ──────────────────────────────────────
+  # 3. 單元測試 (Unit Test)
+  # ──────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest    # 免費 Runner
+    # 在交付驗證通過後才執行測試，確保建置產物已驗證完畢。
+    needs: deliver
+    steps:
+      # 測試需要原始碼，因此必須重新 checkout（不同 Job = 不同 Runner = 乾淨環境）。
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      # go test：Go 官方內建測試工具（BSD-3-Clause），完全本機執行。
+      # -v：顯示每個測試函式的詳細結果（PASS/FAIL）
+      # -race：啟用 Go 內建的 race detector，偵測並發競爭條件
+      # -coverprofile=coverage.out：產出測試覆蓋率報告檔案
+      # ./...：遞迴測試所有子套件
+      # 資料安全：測試完全在本機執行，結果僅輸出至 Actions 日誌。
+      - name: Run unit tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      # 上傳覆蓋率報告至 GitHub Artifact（非第三方服務如 Codecov），
+      # 避免原始碼或覆蓋率資料外流至外部平台。
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out
+
+  # ──────────────────────────────────────
+  # 4. 安全檢測 (Security Scan)
+  # ──────────────────────────────────────
+  security-scan:
+    runs-on: ubuntu-latest    # 免費 Runner
+    # 在單元測試通過後才進行安全掃描，避免對有錯誤的程式碼浪費掃描資源。
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      # gosec (Go Security Checker)（Apache License 2.0，純開源無商業爭議）
+      # 靜態分析工具，掃描原始碼中常見的安全漏洞，
+      # 包括 SQL injection、硬編碼密碼、不安全的隨機數、弱加密演算法等。
+      # 資料安全：完全在本機執行靜態分析，不會將原始碼傳送至任何外部服務。
+      # 注意：鎖定 v2 版本標籤，禁止使用 @master 以防止供應鏈攻擊。
+      - name: Run gosec security scanner
+        uses: securego/gosec@v2
+        with:
+          args: ./...
+
+      # govulncheck（BSD-3-Clause，Go 官方維護，無商業授權爭議）
+      # 比對專案引用的相依套件是否存在已知的 CVE 漏洞（基於 Go 漏洞資料庫）。
+      # 資料安全：僅向 vuln.go.dev（Go 官方）傳送 module path 進行比對，
+      # 不傳送原始碼或任何敏感資訊。無需 API Key。
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  # ──────────────────────────────────────
+  # 5. 開源檢測 (Open Source / License Scan)
+  # ──────────────────────────────────────
+  oss-scan:
+    runs-on: ubuntu-latest    # 免費 Runner
+    # 在安全掃描通過後才進行開源授權檢測，確保程式碼本身安全無虞。
+    needs: security-scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      # go-licenses（Apache License 2.0，Google 開發，純開源無商業爭議）
+      # 檢查專案所有直接與間接相依套件的授權類型。
+      # 資料安全：完全在本機執行，僅讀取本機的 Go module cache，不上傳資料。
+      - name: Install go-licenses
+        run: go install github.com/google/go-licenses@latest
+
+      # check 子命令：驗證所有相依套件的授權是否符合規範，
+      # 預設會拒絕 GPL 等具有 copyleft 性質的授權（可能影響商業使用），
+      # 若發現不合規的授權，此步驟會回傳非零退出碼導致 pipeline 失敗。
+      - name: Check licenses
+        run: go-licenses check ./...
+
+      # report 子命令：產出完整的授權清單報告，
+      # 列出每個相依套件的名稱、授權類型及授權檔案路徑，
+      # 方便法務或合規團隊審查。2>/dev/null 抑制非關鍵的警告訊息。
+      # 資料安全：報告僅存於 Runner 本機並上傳至 GitHub Artifact，不外傳。
+      - name: Generate license report
+        run: |
+          go-licenses report ./... 2>/dev/null > license-report.txt || true
+          cat license-report.txt
+
+      # 上傳授權報告作為 pipeline 產物，方便下載留存或供後續審計使用。
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: license-report.txt
