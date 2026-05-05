@@ -1,0 +1,56 @@
+10:00 [使用者] 請將對話紀錄以純文字儲存在 ai_logs 資料夾，以小時時間區分，規範儲存成 md。
+
+10:05 [AI] 建立 ai_logs/ 資料夾，產出對話紀錄與 governance.md（但格式不符使用者期望）。
+     變更檔案：ai_logs/（多個 .md 檔案）、governance.md（新建）
+
+10:10 [使用者] 對話紀錄應以時間軸格式 YYYYMMDD-HH_log.txt 儲存，規範應以專案層級的 agent.md 建立，不放在 ai_logs 裡。
+
+10:15 [AI] 重新整理：
+     - ai_logs/20260505-09_log.txt — 時間軸對話紀錄
+     - 專案根目錄 agent.md — Pipeline 治理規範與守則
+     - 刪除舊的 .md 對話紀錄檔案
+     變更檔案：20260505-09_log.txt（新建）、agent.md（新建）、刪除舊 .md 檔案
+
+10:20 [使用者] 規範增加讓LLM自動去ai_logs補上新的對話紀錄，如果跨小時則建立新的log。
+
+10:25 [AI] 更新 agent.md 第八節「對話紀錄規範」，新增自動記錄規則：
+     - LLM 每次對話結束或階段完成時，必須自動追加紀錄至 ai_logs/YYYYMMDD-HH_log.txt
+     - 若檔案已存在則追加，不存在則建立新檔
+     - 跨小時時須分別寫入對應小時的 log 檔案
+     - 紀錄格式為 HH:MM [角色] 內容摘要
+     - 每一輪問答皆不可遺漏
+     變更檔案：agent.md（修改）、20260505-09_log.txt（追加紀錄）
+
+10:35 [使用者] Pipeline 執行失敗，截圖顯示 1 error + 5 warnings：
+     - Error: securego/gosec@v2 找不到版本
+     - Warning: Node.js 20 deprecated（checkout@v4, setup-go@v5, upload-artifact@v4, download-artifact@v4）
+     - Warning: go.sum 找不到導致 cache restore 失敗
+
+10:40 [AI] 修正三個問題：
+     1. gosec@v2 不存在 → 改用 go install github.com/securego/gosec/v2/cmd/gosec@latest 直接安裝執行
+        （不再依賴第三方 Action，完全本機執行，更符合治理規範）
+     2. Node.js 20 deprecation → actions/checkout 從 @v4 升級至 @v5
+     3. go.sum 缺失警告 → setup-go 加上 cache: false（本專案無外部相依，無需快取）
+     同步更新 agent.md 工具授權清單與 workflow 註解。
+     變更檔案：manual.yml（修改）、agent.md（修改）
+
+10:45 [使用者] 請問要怎麼建立 pull request 到 release 觸發 Workflow 流程？
+
+10:45 [AI] 說明兩種方式：
+     1. push: release — PR 合併到 release 後自動觸發（簡潔，推薦）
+     2. pull_request: closed + merged==true — 更精確但需額外過濾
+     詢問使用者偏好哪種方式。（僅說明，未修改檔案）
+
+10:50 [使用者] 哪個比較符合正確的開發流程？
+
+10:52 [AI] 推薦 push: release + 保留 workflow_dispatch，並說明 Git Flow：
+     feature/* → develop → release（CI 觸發點）→ main（打 tag 發佈）
+     保留 workflow_dispatch 用於緊急修復與 pipeline 測試。（僅說明，未修改檔案）
+
+10:55 [使用者] 好的，另外可以用註解的方式給我一個流程範例演示嗎？
+
+10:58 [AI] 修改 manual.yml：
+     1. 頂部新增完整的開發流程範例註解區塊（5 步驟 + 分支結構圖 + Git 指令範例）
+     2. 觸發條件改為 push: release + workflow_dispatch
+     3. Workflow 名稱改為 "CI Pipeline"
+     變更檔案：manual.yml（修改）

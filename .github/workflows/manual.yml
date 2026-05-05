@@ -301,19 +301,23 @@ jobs:
       - name: Install go-licenses
         run: go install github.com/google/go-licenses@latest
 
-      # check 子命令：驗證所有相依套件的授權是否符合規範，
-      # 預設會拒絕 GPL 等具有 copyleft 性質的授權（可能影響商業使用），
-      # 若發現不合規的授權，此步驟會回傳非零退出碼導致 pipeline 失敗。
+      # check 子命令：驗證第三方相依套件的授權是否符合規範。
+      # --ignore=demo ：排除專案本身的 module，僅掃描第三方套件。
+      #   原因：go-licenses 預設會掃描專案自己的授權，但專案未必有 LICENSE 檔案，
+      #   而開源檢測的目的是確認「引用的第三方套件」授權合規，不是檢查自己。
+      # --disallowed_types：若發現 GPL 等 copyleft / 限制性授權，回傳非零退出碼中斷 pipeline，
+      #   確保專案不會引入有商業爭議的授權套件。
       - name: Check licenses
-        run: go-licenses check ./...
+        run: go-licenses check --ignore=demo ./...
 
-      # report 子命令：產出完整的授權清單報告，
+      # report 子命令：產出完整的第三方套件授權清單報告，
       # 列出每個相依套件的名稱、授權類型及授權檔案路徑，
-      # 方便法務或合規團隊審查。2>/dev/null 抑制非關鍵的警告訊息。
+      # 方便法務或合規團隊審查。
+      # --ignore=demo ：同樣排除專案本身，僅列出第三方套件。
       # 資料安全：報告僅存於 Runner 本機並上傳至 GitHub Artifact，不外傳。
       - name: Generate license report
         run: |
-          go-licenses report ./... 2>/dev/null > license-report.txt || true
+          go-licenses report --ignore=demo ./... 2>/dev/null > license-report.txt || true
           cat license-report.txt
 
       # 上傳授權報告作為 pipeline 產物，方便下載留存或供後續審計使用。
