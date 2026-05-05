@@ -89,3 +89,12 @@
      2. 觸發條件改為 push: release + workflow_dispatch
      3. Workflow 名稱改為 "CI Pipeline"
      變更檔案：manual.yml、20260505-09_log.txt
+
+09:59 [使用者] 增加一個API會做數學運算
+
+09:59 [AI] 新增 /calc API 與對應測試：
+     - main.go：新增 calcHandler，支援 add/sub/mul/div 四則運算
+       用法：GET /calc?a=3&b=2&op=add → 回傳 5
+       含輸入驗證（參數缺失、除以零、無效運算子）
+     - main_test.go：新增 TestCalcHandler，8 個測試案例（含正常與錯誤情境）
+     變更檔案：main.go、main_test.go、20260505-09_log.txt
