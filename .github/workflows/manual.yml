@@ -1,4 +1,45 @@
-# This is a basic workflow that is manually triggered
+# This is a CI/CD workflow triggered by push to release branch or manually
+#
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                          開發流程範例 (Git Flow)                             ║
+# ╠══════════════════════════════════════════════════════════════════════════════╣
+# ║                                                                            ║
+# ║  步驟 1：從 develop 建立 feature 分支進行開發                                ║
+# ║    $ git checkout develop                                                  ║
+# ║    $ git checkout -b feature/add-user-api                                  ║
+# ║    $ # ... 撰寫程式碼 ...                                                  ║
+# ║    $ git add . && git commit -m "feat: add user API"                       ║
+# ║    $ git push origin feature/add-user-api                                  ║
+# ║                                                                            ║
+# ║  步驟 2：建立 PR 從 feature → develop，進行 Code Review                     ║
+# ║    - 在 GitHub 上建立 Pull Request: feature/add-user-api → develop          ║
+# ║    - 團隊成員審查程式碼、留下 Review 意見                                     ║
+# ║    - 審查通過後合併 PR                                                      ║
+# ║                                                                            ║
+# ║  步驟 3：準備發佈，建立 PR 從 develop → release                              ║
+# ║    - 在 GitHub 上建立 Pull Request: develop → release                       ║
+# ║    - 確認所有功能已就緒、版本號已更新                                         ║
+# ║    - 合併 PR → 觸發此 CI Workflow（push 事件）                               ║
+# ║                                                                            ║
+# ║  步驟 4：CI Pipeline 自動執行（本 Workflow）                                 ║
+# ║    build → deliver → test → security-scan → oss-scan                       ║
+# ║    - 建置 → 交付驗證 → 單元測試 → 安全掃描 → 開源授權檢測                     ║
+# ║    - 全部通過後，程式碼品質已獲保證                                           ║
+# ║                                                                            ║
+# ║  步驟 5：正式發佈，建立 PR 從 release → main                                ║
+# ║    - 在 GitHub 上建立 Pull Request: release → main                          ║
+# ║    - 最終確認後合併，並在 main 上打版本標籤                                   ║
+# ║    $ git tag v1.0.0 && git push origin v1.0.0                              ║
+# ║                                                                            ║
+# ║  分支結構圖：                                                               ║
+# ║                                                                            ║
+# ║  feature/* ──PR──→ develop ──PR──→ release ──PR──→ main                    ║
+# ║                                      ↑                  ↑                  ║
+# ║                                CI 在此觸發          打 tag 發佈             ║
+# ║                                                                            ║
+# ║  緊急修復：可透過 workflow_dispatch 手動觸發 CI，不需經過完整 PR 流程          ║
+# ║                                                                            ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 #
 # ╔══════════════════════════════════════════════════════════════════════════════╗
 # ║                          Pipeline 治理規範                                  ║
@@ -34,13 +75,18 @@
 #   - 掃描結果：僅輸出至 Actions 日誌與 Artifact，不外傳
 #   - govulncheck：僅向 vuln.go.dev 傳送 module path 比對漏洞，不傳送原始碼
 
-name: Manual workflow
+name: CI Pipeline
 
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
+# 觸發條件：
+# 1. push to release — PR 合併到 release 分支時自動觸發（標準開發流程）
+# 2. workflow_dispatch — 保留手動觸發彈性（緊急修復、測試 pipeline）
 on:
+  push:
+    branches:
+      - release
+
   workflow_dispatch:
-    # Inputs the workflow accepts.
+    # 手動觸發時可接受的輸入參數
     inputs:
       name:
         description: 'Person to greet'
