@@ -98,3 +98,17 @@
        含輸入驗證（參數缺失、除以零、無效運算子）
      - main_test.go：新增 TestCalcHandler，8 個測試案例（含正常與錯誤情境）
      變更檔案：main.go、main_test.go、20260505-09_log.txt
+
+09:59 [使用者] 安全檢測步驟 gosec 發現 G114(無timeout)、G104(error未處理) 導致 pipeline 中斷。
+     希望安全檢測以報告方式產出，不要因高風險就中斷流程。
+
+09:59 [AI] 兩方面修正：
+     1. main.go — 修正安全問題：
+        - http.ListenAndServe 改為 http.Server 並設定 ReadTimeout/WriteTimeout/IdleTimeout
+        - 用 log.Fatal 處理 ListenAndServe 的 error 回傳值
+     2. manual.yml — 安全掃描改為報告模式：
+        - gosec 加上 -fmt=json -stdout -no-fail，不因發現問題而中斷 pipeline
+        - gosec 結果輸出至 gosec-report.json 並上傳 Artifact
+        - govulncheck 加上 -json + || true，同樣不中斷
+        - govulncheck 結果輸出至 govulncheck-report.json 並上傳 Artifact
+     變更檔案：main.go、manual.yml、20260505-09_log.txt
