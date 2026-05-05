@@ -48,3 +48,14 @@
      - 20260505-10_log.txt：新建，記錄 10:00~10:58 的紀錄（7 輪對話）
      - 20260505-11_log.txt：新建，記錄 11:00 起的紀錄（含本輪共 6 輪對話）
      變更檔案：20260505-09_log.txt（修改）、20260505-10_log.txt（新建）、20260505-11_log.txt（新建）
+
+11:55 [使用者] 收到 GitHub Actions 警告：Node.js 20 即將棄用，actions/setup-go@v5 和 actions/upload-artifact@v4
+     仍使用 Node.js 20，2026 年 6 月 2 日起將強制改用 Node.js 24，可能無法正常運作。
+
+12:05 [AI] 升級所有 GitHub Actions 至 Node.js 24 相容版本：
+     - actions/checkout@v5 → @v6（Node 24, v6.0.2）
+     - actions/setup-go@v5 → @v6（Node 24, v6.4.0）
+     - actions/upload-artifact@v4 → @v7（Node 24, v7.0.1）
+     - actions/download-artifact@v4 → @v7（Node 24, v7.0.0）
+     同步更新 agent.md 工具授權清單，標註 Node 24 相容。
+     變更檔案：manual.yml（修改）、agent.md（修改）

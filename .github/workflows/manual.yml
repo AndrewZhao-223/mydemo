@@ -61,10 +61,10 @@
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 #
 # 工具授權清單：
-#   - actions/checkout@v5           → MIT License (GitHub 官方)
-#   - actions/setup-go@v5           → MIT License (GitHub 官方)
-#   - actions/upload-artifact@v4    → MIT License (GitHub 官方)
-#   - actions/download-artifact@v4  → MIT License (GitHub 官方)
+#   - actions/checkout@v6           → MIT License (GitHub 官方, Node 24)
+#   - actions/setup-go@v6           → MIT License (GitHub 官方, Node 24)
+#   - actions/upload-artifact@v7    → MIT License (GitHub 官方, Node 24)
+#   - actions/download-artifact@v7  → MIT License (GitHub 官方, Node 24)
 #   - gosec (go install)            → Apache License 2.0
 #   - govulncheck                   → BSD-3-Clause (Go 官方)
 #   - go-licenses                   → Apache License 2.0 (Google)
@@ -128,19 +128,19 @@ jobs:
   build:
     runs-on: ubuntu-latest    # 免費 Runner，不使用付費 larger runner
     steps:
-      # actions/checkout@v5（MIT License, GitHub 官方維護，Node 22）
+      # actions/checkout@v6（MIT License, GitHub 官方維護，Node 24）
       # 將 Git 倉庫的原始碼拉取到 Runner 的工作目錄中。
       # Runner 預設是乾淨的虛擬環境，不包含任何專案檔案。
       # 資料安全：原始碼僅存在於 Runner 本機，不會傳送至外部。
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
-      # actions/setup-go@v5（MIT License, GitHub 官方維護）
+      # actions/setup-go@v6（MIT License, GitHub 官方維護，Node 24）
       # 安裝指定版本的 Go 編譯器並設定 GOPATH / GOROOT 環境變數。
       # 資料安全：僅從 golang.org 官方下載 Go SDK，不傳送任何專案資料。
       # cache: false — 本專案無外部相依（無 go.sum），關閉快取避免警告。
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.22'
           cache: false
@@ -155,7 +155,7 @@ jobs:
       # 僅限同 Workflow 內的 Job 透過 download-artifact 存取。
       # 資料安全：產物儲存在 GitHub 基礎設施內，不外流至第三方。
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: demo-app
           path: demo-app
@@ -169,12 +169,12 @@ jobs:
     # 確保建置產物已經準備好可供下載。
     needs: build
     steps:
-      # actions/download-artifact@v4（MIT License, GitHub 官方維護）
+      # actions/download-artifact@v7（MIT License, GitHub 官方維護，Node 24）
       # 從 GitHub Actions 暫存區下載先前上傳的建置產物，
       # 這是跨 Job 傳遞檔案的標準方式。
       # 資料安全：僅從 GitHub 內部暫存區下載，不涉及第三方服務。
       - name: Download build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: demo-app
 
@@ -199,10 +199,10 @@ jobs:
     steps:
       # 測試需要原始碼，因此必須重新 checkout（不同 Job = 不同 Runner = 乾淨環境）。
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.22'
           cache: false
@@ -219,7 +219,7 @@ jobs:
       # 上傳覆蓋率報告至 GitHub Artifact（非第三方服務如 Codecov），
       # 避免原始碼或覆蓋率資料外流至外部平台。
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage.out
@@ -233,10 +233,10 @@ jobs:
     needs: test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.22'
           cache: false
@@ -256,7 +256,7 @@ jobs:
           echo "--- gosec 掃描完成，結果已輸出至 gosec-report.json ---"
 
       - name: Upload gosec report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gosec-report
           path: gosec-report.json
@@ -273,7 +273,7 @@ jobs:
           echo "--- govulncheck 掃描完成，結果已輸出至 govulncheck-report.json ---"
 
       - name: Upload govulncheck report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: govulncheck-report
           path: govulncheck-report.json
@@ -287,10 +287,10 @@ jobs:
     needs: security-scan
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.22'
           cache: false
@@ -322,7 +322,7 @@ jobs:
 
       # 上傳授權報告作為 pipeline 產物，方便下載留存或供後續審計使用。
       - name: Upload license report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: license-report
           path: license-report.txt
