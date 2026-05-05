@@ -20,11 +20,11 @@
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 #
 # 工具授權清單：
-#   - actions/checkout@v4           → MIT License (GitHub 官方)
+#   - actions/checkout@v5           → MIT License (GitHub 官方)
 #   - actions/setup-go@v5           → MIT License (GitHub 官方)
 #   - actions/upload-artifact@v4    → MIT License (GitHub 官方)
 #   - actions/download-artifact@v4  → MIT License (GitHub 官方)
-#   - securego/gosec                → Apache License 2.0
+#   - gosec (go install)            → Apache License 2.0
 #   - govulncheck                   → BSD-3-Clause (Go 官方)
 #   - go-licenses                   → Apache License 2.0 (Google)
 #
@@ -80,21 +80,22 @@ jobs:
   build:
     runs-on: ubuntu-latest    # 免費 Runner，不使用付費 larger runner
     steps:
-      # actions/checkout@v4（MIT License, GitHub 官方維護）
+      # actions/checkout@v5（MIT License, GitHub 官方維護，Node 22）
       # 將 Git 倉庫的原始碼拉取到 Runner 的工作目錄中。
       # Runner 預設是乾淨的虛擬環境，不包含任何專案檔案。
       # 資料安全：原始碼僅存在於 Runner 本機，不會傳送至外部。
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # actions/setup-go@v5（MIT License, GitHub 官方維護）
-      # 安裝指定版本的 Go 編譯器並設定 GOPATH / GOROOT 環境變數，
-      # 同時自動快取 Go module 加速下載。
+      # 安裝指定版本的 Go 編譯器並設定 GOPATH / GOROOT 環境變數。
       # 資料安全：僅從 golang.org 官方下載 Go SDK，不傳送任何專案資料。
+      # cache: false — 本專案無外部相依（無 go.sum），關閉快取避免警告。
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+          cache: false
 
       # go build：Go 官方內建工具（BSD-3-Clause），完全本機執行。
       # -o demo-app 指定輸出檔名，./... 表示遞迴編譯所有子套件。
@@ -150,12 +151,13 @@ jobs:
     steps:
       # 測試需要原始碼，因此必須重新 checkout（不同 Job = 不同 Runner = 乾淨環境）。
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+          cache: false
 
       # go test：Go 官方內建測試工具（BSD-3-Clause），完全本機執行。
       # -v：顯示每個測試函式的詳細結果（PASS/FAIL）
@@ -183,22 +185,23 @@ jobs:
     needs: test
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+          cache: false
 
       # gosec (Go Security Checker)（Apache License 2.0，純開源無商業爭議）
       # 靜態分析工具，掃描原始碼中常見的安全漏洞，
       # 包括 SQL injection、硬編碼密碼、不安全的隨機數、弱加密演算法等。
-      # 資料安全：完全在本機執行靜態分析，不會將原始碼傳送至任何外部服務。
-      # 注意：鎖定 v2 版本標籤，禁止使用 @master 以防止供應鏈攻擊。
+      # 資料安全：透過 go install 安裝後完全在本機執行，不依賴第三方 Action，
+      # 避免版本標籤解析問題與供應鏈風險。
       - name: Run gosec security scanner
-        uses: securego/gosec@v2
-        with:
-          args: ./...
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec ./...
 
       # govulncheck（BSD-3-Clause，Go 官方維護，無商業授權爭議）
       # 比對專案引用的相依套件是否存在已知的 CVE 漏洞（基於 Go 漏洞資料庫）。
@@ -218,12 +221,13 @@ jobs:
     needs: security-scan
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+          cache: false
 
       # go-licenses（Apache License 2.0，Google 開發，純開源無商業爭議）
       # 檢查專案所有直接與間接相依套件的授權類型。

@@ -55,3 +55,16 @@
      - 紀錄格式為 HH:MM [角色] 內容摘要
      - 每一輪問答皆不可遺漏
      變更檔案：agent.md（新增自動記錄規則 + 變更紀錄）、20260505-09_log.txt（追加本輪紀錄）
+
+09:58 [使用者] Pipeline 執行失敗，截圖顯示 1 error + 5 warnings：
+     - Error: securego/gosec@v2 找不到版本
+     - Warning: Node.js 20 deprecated（checkout@v4, setup-go@v5, upload-artifact@v4, download-artifact@v4）
+     - Warning: go.sum 找不到導致 cache restore 失敗
+
+09:58 [AI] 修正三個問題：
+     1. gosec@v2 不存在 → 改用 go install github.com/securego/gosec/v2/cmd/gosec@latest 直接安裝執行
+        （不再依賴第三方 Action，完全本機執行，更符合治理規範）
+     2. Node.js 20 deprecation → actions/checkout 從 @v4 升級至 @v5
+     3. go.sum 缺失警告 → setup-go 加上 cache: false（本專案無外部相依，無需快取）
+     同步更新 agent.md 工具授權清單與 workflow 註解。
+     變更檔案：manual.yml、agent.md、20260505-09_log.txt

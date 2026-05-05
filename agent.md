@@ -108,11 +108,11 @@ permissions:
 
 | 工具 | 版本 | 授權 | 維護者 | 資料外傳 |
 |------|------|------|--------|---------|
-| actions/checkout | @v4 | MIT | GitHub 官方 | 無 |
+| actions/checkout | @v5 | MIT | GitHub 官方 | 無 |
 | actions/setup-go | @v5 | MIT | GitHub 官方 | 無 |
 | actions/upload-artifact | @v4 | MIT | GitHub 官方 | 無（GitHub 內部） |
 | actions/download-artifact | @v4 | MIT | GitHub 官方 | 無 |
-| securego/gosec | @v2 | Apache 2.0 | securego 社群 | 無 |
+| gosec (go install) | @latest | Apache 2.0 | securego 社群 | 無 |
 | govulncheck | @latest | BSD-3-Clause | Go 官方 | module path → vuln.go.dev |
 | go-licenses | @latest | Apache 2.0 | Google | 無 |
 
