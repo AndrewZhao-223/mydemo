@@ -142,7 +142,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.22'
+          go-version: '1.25'
           cache: false
 
       # go build：Go 官方內建工具（BSD-3-Clause），完全本機執行。
@@ -204,7 +204,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.22'
+          go-version: '1.25'
           cache: false
 
       # go test：Go 官方內建測試工具（BSD-3-Clause），完全本機執行。
@@ -238,7 +238,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.22'
+          go-version: '1.25'
           cache: false
 
       # gosec (Go Security Checker)（Apache License 2.0，純開源無商業爭議）
@@ -292,7 +292,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.22'
+          go-version: '1.25'
           cache: false
 
       # go-licenses（Apache License 2.0，Google 開發，純開源無商業爭議）
